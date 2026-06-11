@@ -1,0 +1,1 @@
+{"order_code":"CMD-2001","customer":{"full_name":"Sara Ben Ali","email":"sara@test.com","phone":"22111222"},"items":[{"product_code":"P001","product_name":"Black T-shirt","quantity":2,"unit_price":35},{"product_code":"P003","product_name":"Blue Backpack","quantity":1,"unit_price":90}],"total_amount":160,"payment_status":"paid"}

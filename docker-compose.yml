@@ -1,0 +1,51 @@
+version: "3.8"
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: autoshop_n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - NODE_ENV=development
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=Africa/Tunis
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - postgres
+      - mailpit
+
+  postgres:
+    image: postgres:16
+    container_name: autoshop_postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=autoshop_user
+      - POSTGRES_PASSWORD=autoshop_password
+      - POSTGRES_DB=autoshop_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: autoshop_mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  metabase:
+    image: metabase/metabase:latest
+    container_name: autoshop_metabase
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+
+volumes:
+  n8n_data:
+  postgres_data:
