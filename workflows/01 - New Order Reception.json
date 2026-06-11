@@ -1,0 +1,209 @@
+{
+  "name": "01 - New Order Reception",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "new-order",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8a650bf7-040a-4ce2-a745-39d8acc05a15",
+      "name": "Webhook",
+      "webhookId": "4fa6049b-417f-4958-9445-4ecfd908bcbe"
+    },
+    {
+      "parameters": {
+        "jsCode": "const order = $json.body || $json;\n\nconst errors = [];\n\nif (!order.order_code) {\n  errors.push(\"Order code is required\");\n}\n\nif (!order.customer || !order.customer.full_name) {\n  errors.push(\"Customer full name is required\");\n}\n\nif (!order.customer || !order.customer.email) {\n  errors.push(\"Customer email is required\");\n}\n\nif (!order.items || order.items.length === 0) {\n  errors.push(\"Order must contain at least one item\");\n}\n\nif (!order.total_amount || order.total_amount <= 0) {\n  errors.push(\"Total amount must be greater than 0\");\n}\n\nif (errors.length > 0) {\n  return [\n    {\n      json: {\n        valid: false,\n        errors: errors\n      }\n    }\n  ];\n}\n\nreturn [\n  {\n    json: {\n      valid: true,\n      order: order\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "a86b2a53-523a-4cff-b200-2afde055f97a",
+      "name": "Validate Data"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"status\": \"success\", \"message\": \"Order received\"}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1024,
+        256
+      ],
+      "id": "587be219-cb5b-4c09-91fb-169970b0e6e0",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO customers (full_name, email, phone)\nVALUES (\n  '{{ $json.order.customer.full_name }}',\n  '{{ $json.order.customer.email }}',\n  '{{ $json.order.customer.phone }}'\n)\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        0
+      ],
+      "id": "351aab90-bc13-4e0d-b97f-a5d94acc1826",
+      "name": "Insert Customer",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO orders (\n  order_code,\n  customer_id,\n  total_amount,\n  status,\n  payment_status,\n  delivery_status\n)\nVALUES (\n  '{{ $('Validate Data').item.json.order.order_code }}',\n  {{ $json.id }},\n  {{ $('Validate Data').item.json.order.total_amount }},\n  'confirmed',\n  '{{ $('Validate Data').item.json.order.payment_status }}',\n  'not_shipped'\n)\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        624,
+        0
+      ],
+      "id": "6c5e788f-8aa9-480d-94a7-74fbef01992c",
+      "name": "Insert Order",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $('Validate Data').item.json.order.items;\nconst orderId = $json.id;\n\nconst results = [];\n\nfor (const item of items) {\n  results.push({\n    json: {\n      order_id: orderId,\n      product_code: item.product_code,\n      quantity: item.quantity,\n      unit_price: item.unit_price,\n      line_total: item.quantity * item.unit_price\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        784,
+        0
+      ],
+      "id": "bfcf6150-541d-44a5-b875-84ceddcc8894",
+      "name": "Insert Order Items"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO order_items (\n  order_id,\n  product_id,\n  quantity,\n  unit_price,\n  line_total\n)\nSELECT\n  {{ $json.order_id }},\n  id,\n  {{ $json.quantity }},\n  {{ $json.unit_price }},\n  {{ $json.line_total }}\nFROM products\nWHERE product_code = '{{ $json.product_code }}'\nRETURNING id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        960,
+        0
+      ],
+      "id": "e6c3e8f1-677e-46e2-ab1c-63954b3336fd",
+      "name": "Save Order Items",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Insert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Customer": {
+      "main": [
+        [
+          {
+            "node": "Insert Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Order": {
+      "main": [
+        [
+          {
+            "node": "Insert Order Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Order Items": {
+      "main": [
+        [
+          {
+            "node": "Save Order Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Order Items": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ad12d4d6-47e8-4177-9508-d3a38537ba1b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "0OqBRJBLpdfsI3ih",
+  "tags": []
+}
