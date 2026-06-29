@@ -1,0 +1,274 @@
+{
+  "name": "08 - Livreur Email Trigger",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [
+        -688,
+        -480
+      ],
+      "id": "b2fcce4d-6354-4b61-aac7-ab1eda7605c7",
+      "name": "Email Trigger Livreur",
+      "credentials": {
+        "imap": {
+          "id": "mQCoU7biSTpKFMnY",
+          "name": "IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const email = $json;\n\nconst subject = email.subject || '';\n\n// Extraire depuis le subject\n// Format attendu : \"shipped CMD-01\" ou \"delivered CMD-01\"\nconst content = subject.toLowerCase().trim();\nconst parts = content.split(' ');\n\nconst status = parts[0]; // shipped ou delivered\nconst orderCode = parts[1] ? parts[1].toUpperCase() : ''; // CMD-01\n\n// Récupérer l'email du livreur\nconst fromEmail = email.from || \n                  email.metadata?.from || \n                  'livreur@unknown.com';\n\nreturn [{\n  json: {\n    delivery_status: status,\n    order_code: orderCode,\n    livreur_email: typeof fromEmail === 'string' ? fromEmail : 'livreur@unknown.com',\n    raw_subject: subject\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        -480
+      ],
+      "id": "12a0d0ba-f09f-40e2-acf7-3517995492be",
+      "name": "Extract Email Data"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  orders.id,\n  orders.order_code,\n  orders.delivery_status,\n  customers.full_name,\n  customers.email AS livreur_email\nFROM orders\nJOIN customers ON customers.id = orders.customer_id\nWHERE orders.order_code = '{{ $json.order_code }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -336,
+        -480
+      ],
+      "id": "0c659156-fa01-456e-a301-fb54b60fd217",
+      "name": "Find Order",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders\nSET \n  delivery_status = '{{ $('Extract Email Data').item.json.delivery_status }}',\n  updated_at = CURRENT_TIMESTAMP\nWHERE order_code = '{{ $('Extract Email Data').item.json.order_code }}'\nRETURNING id, order_code, delivery_status",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        96,
+        -304
+      ],
+      "id": "9d450e73-5fcb-4d78-80bc-5d03c4710c98",
+      "name": "Update Delivery Status",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8471701647",
+        "text": "={{ $('Extract Email Data').item.json.delivery_status === 'shipped' ? '🚚' : '✅' }} Delivery Update! \nOrder: {{ $('Extract Email Data').item.json.order_code }} \nCustomer: {{ $('Find Order').item.json.full_name }}  {{ $('Extract Email Data').item.json.delivery_status === 'shipped' ? '  Your order has been shipped and is on its way!' : '✅ Your order has been delivered! Thank you for shopping with us!' }}  \nAutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        352,
+        -288
+      ],
+      "id": "36931cbf-c9cd-4044-8a46-ee3215218598",
+      "name": "Send Telegram to Client",
+      "webhookId": "e3aa4740-f8b5-4b4e-9764-714fdb54a0c2",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "rouahamrouni2003@gmail.com",
+        "toEmail": "={{ $('Extract Email Data').item.json.livreur_email }}",
+        "subject": "=✅ Status Updated - {{ $('Extract Email Data').item.json.order_code }}",
+        "emailFormat": "text",
+        "text": "=Hello,\n\nThe delivery status has been updated successfully.\n\nOrder: {{ $('Extract Email Data').item.json.order_code }}\nNew Status: {{ $('Extract Email Data').item.json.delivery_status }}\n\nThe customer has been notified via Telegram.\n\nAutoShop System",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        544,
+        -288
+      ],
+      "id": "179a4123-fd0a-4f44-96f4-fac2203d4d43",
+      "name": "Send Email to Livreur",
+      "webhookId": "8eead4d6-6823-49fb-a519-a34facfd15a9",
+      "credentials": {
+        "smtp": {
+          "id": "lMnhHudFf1D3124q",
+          "name": "Mailpit Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2e9fcb64-0f78-4fd7-90af-012b6c0e28f1",
+              "leftValue": "={{ $json.delivery_status }}",
+              "rightValue": "={{ $('Extract Email Data').item.json.delivery_status }} ",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -160,
+        -480
+      ],
+      "id": "50a9e8aa-dbcb-4b8c-ab80-2376bfcd6a36",
+      "name": "Is Already Updated"
+    },
+    {
+      "parameters": {
+        "fromEmail": "rouahamrouni2003@gmail.com",
+        "toEmail": "={{ $('Extract Email Data').item.json.livreur_email }}",
+        "emailFormat": "text",
+        "text": "=Bonjour,\n\nLa commande {{ $json.order_code }} est déjà au statut : {{ $json.delivery_status }}\n\nAucune action supplémentaire n'a été effectuée.\n\nAutoShop Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        48,
+        -576
+      ],
+      "id": "31f21d6d-0661-4417-a84a-8f7601db5b31",
+      "name": "Notify Livreur Already Updated",
+      "webhookId": "cfd336e8-ebb1-4ca4-9a35-14670a7fccc1",
+      "credentials": {
+        "smtp": {
+          "id": "lMnhHudFf1D3124q",
+          "name": "Mailpit Account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Email Trigger Livreur": {
+      "main": [
+        [
+          {
+            "node": "Extract Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Email Data": {
+      "main": [
+        [
+          {
+            "node": "Find Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Order": {
+      "main": [
+        [
+          {
+            "node": "Is Already Updated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Delivery Status": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram to Client",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram to Client": {
+      "main": [
+        [
+          {
+            "node": "Send Email to Livreur",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Already Updated": {
+      "main": [
+        [
+          {
+            "node": "Notify Livreur Already Updated",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update Delivery Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "0e363804-4b3a-45df-aec0-36a7ad1d950c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "eNjWtmvEcppxmrJr",
+  "tags": []
+}

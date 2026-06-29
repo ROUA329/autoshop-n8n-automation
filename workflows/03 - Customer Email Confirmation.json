@@ -1,0 +1,126 @@
+{
+  "name": "03 - Customer Email Confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -448,
+        -64
+      ],
+      "id": "c46f3a11-afa9-4ebe-ab11-a36995af3856",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "fromEmail": "autoshop@test.com",
+        "toEmail": "={{ $json.customer_email }}",
+        "subject": "=Your order {{ $json.order_code }} is confirmed",
+        "html": "=Hello {{ $json.customer_name }},\n\nThank you for your order.\n\nYour order number is: {{ $json.order_code }}\n\nTotal amount: {{ $json.total_amount }} TND\n\nWe will notify you when your order is shipped.\n\nBest regards,\nAutoShop Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        -64
+      ],
+      "id": "bc5aad43-50da-4c5a-916b-a72559b92d87",
+      "name": "Send Confirmation Email",
+      "webhookId": "121540e8-28d6-4498-a980-743565aa6bc4",
+      "credentials": {
+        "smtp": {
+          "id": "H9lyohsWELTjRmlq",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nreturn [\n  {\n    json: {\n      customer_email: data.customer_email || data.customer?.email || data.order?.customer?.email,\n      customer_name: data.customer_name || data.customer?.full_name || data.order?.customer?.full_name,\n      order_code: data.order_code || data.order?.order_code,\n      total_amount: data.total_amount || data.order?.total_amount\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        -64
+      ],
+      "id": "1109988b-ad16-4570-a527-7468e7e96a2d",
+      "name": "Prepare Email"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_logs (recipient_email, subject, email_type, status)\nVALUES (\n  '{{ $json.customer_email }}',\n  'Your order {{ $json.order_code }} is confirmed',\n  'order_confirmation',\n  'sent'\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        160,
+        -64
+      ],
+      "id": "5b0ea462-49a6-441a-b782-f9dbfaefbc31",
+      "name": "Save Email Log",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Prepare Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Email": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmation Email": {
+      "main": [
+        [
+          {
+            "node": "Save Email Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "cbba129e-4f7c-4e95-897b-9809253c0947",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "3gNduXAA5tg1w3yX",
+  "tags": []
+}

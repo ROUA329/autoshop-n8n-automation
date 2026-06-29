@@ -1,0 +1,265 @@
+{
+  "name": "06 - Abandoned Cart Relance",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cart-created",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -592,
+        -48
+      ],
+      "id": "ff9bc15d-9e57-4364-9a11-2c97a55a802a",
+      "name": "Webhook",
+      "webhookId": "cb81f9be-d79d-44e0-8e2f-79ae6705a801"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO carts (\n  cart_code,\n  customer_email,\n  customer_name,\n  total_amount,\n  status\n)\nVALUES (\n  '{{ $json.body.cart_code }}',\n  '{{ $json.body.customer_email }}',\n  '{{ $json.body.customer_name }}',\n  {{ $json.body.total_amount }},\n  'open'\n)\nRETURNING id, cart_code, customer_name, customer_email, total_amount, status",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -416,
+        -48
+      ],
+      "id": "4ddcbf21-9cc7-4348-8c1b-ff7fda890116",
+      "name": "Save Cart",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "minutes"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -256,
+        -48
+      ],
+      "id": "080dc739-8d7c-48ea-8247-84ef2a607caa",
+      "name": "Wait",
+      "webhookId": "df895a09-5897-4d36-baf4-19fc572bba8b"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  id,\n  cart_code,\n  customer_name,\n  customer_email,\n  total_amount,\n  status\nFROM carts\nWHERE cart_code = '{{ $('Save Cart').item.json.cart_code }}'\nAND status = 'open'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -96,
+        -48
+      ],
+      "id": "5c7827d6-3b27-4701-982b-afc5eeec74c1",
+      "name": "Check Cart Status",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0041e723-8bf6-426f-8e86-c14a3bab24e4",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "open",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        48,
+        -48
+      ],
+      "id": "fe419247-0abb-480e-9961-21c5a013fd04",
+      "name": "Is Cart Still Open"
+    },
+    {
+      "parameters": {
+        "chatId": "8471701647",
+        "text": "=You left something in your cart!  \nCustomer: {{ $json.customer_name }} \nCart total: {{ $json.total_amount }} TND \nComplete your order before  the products are sold out!  \nGo back to your cart and finalize  your purchase now.  AutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        -224
+      ],
+      "id": "8b9f1da7-1acd-4d24-af28-33172ae78c6f",
+      "name": "Send Telegram Relance",
+      "webhookId": "82c82c97-e256-4f83-86a3-b26f852a1121",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE carts\nSET \n  status = 'relance_sent',\n  updated_at = CURRENT_TIMESTAMP\nWHERE cart_code = '{{ $('Save Cart').item.json.cart_code }}'\nRETURNING id, cart_code, status",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        464,
+        -224
+      ],
+      "id": "9caf4cd3-77bc-4234-94cc-152784d7bb17",
+      "name": "Update Cart Status",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"success\",\n  \"message\": \"Cart saved and relance scheduled\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        672,
+        -224
+      ],
+      "id": "f1a09691-4dd3-4f2d-9925-3aa43c4459e3",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Save Cart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Cart": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Check Cart Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Cart Status": {
+      "main": [
+        [
+          {
+            "node": "Is Cart Still Open",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Cart Still Open": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Relance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Relance": {
+      "main": [
+        [
+          {
+            "node": "Update Cart Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Cart Status": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8de8b093-f83b-4fd8-8bfc-1f45f345a3cb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "aQUZM4fZE6oAaUow",
+  "tags": []
+}

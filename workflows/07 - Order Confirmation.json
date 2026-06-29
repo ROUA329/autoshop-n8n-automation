@@ -1,0 +1,370 @@
+{
+  "name": "07 - Order Confirmation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-confirmation",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -768,
+        -176
+      ],
+      "id": "485947dc-fae5-4430-815c-240857344e7b",
+      "name": "Webhook",
+      "webhookId": "1eb52827-528e-48db-8108-37437570cb04"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body;\n\n\nif (body.callback_query) {\n  const callbackQuery = body.callback_query;\n  const callbackData = callbackQuery.data;\n  const chatId = callbackQuery.message.chat.id;\n  const messageId = callbackQuery.message.message_id;\n  const isConfirmed = callbackData.startsWith('confirm_');\n  const orderCode = callbackData.replace('confirm_', '').replace('cancel_', '');\n\n  return [{\n    json: {\n      type: 'client_confirmation',\n      order_code: orderCode,\n      chat_id: chatId,\n      message_id: messageId,\n      confirmed: isConfirmed,\n      callback_data: callbackData\n    }\n  }];\n}\n\n\n\nif (body.message) {\n  const message = body.message;\n  const text = message.text;\n  const chatId = message.chat.id;\n  const parts = text.trim().split(' ');\n  const status = parts[0].toLowerCase();\n  const orderCode = parts[1];\n\n  return [{\n    json: {\n      type: 'delivery_update',\n      delivery_status: status,\n      order_code: orderCode,\n      chat_id: chatId\n    }\n  }];\n}\n\n// Aucun cas reconnu — sécurité\nreturn [{\n  json: {\n    type: 'unknown',\n    raw: body\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        -176
+      ],
+      "id": "0e49ef1e-1714-4e23-9a4b-581df839bf9b",
+      "name": "Extract Callback Data"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a061fb94-fc6f-40d4-bfe0-a88c7ed8d0ba",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "client_confirmation",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -448,
+        -176
+      ],
+      "id": "246fd9f8-ac0a-4444-84d2-8aed3762fbde",
+      "name": "Is Confirmed"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders\nSET \n  status = 'confirmed',\n  updated_at = CURRENT_TIMESTAMP\nWHERE order_code = '{{ $json.order_code }}'\nRETURNING id, order_code, status, customer_id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        -432
+      ],
+      "id": "594e69a6-2324-4051-b3c6-aa1ac33f0f39",
+      "name": "Confirm Order",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "Lb8FIjKS5nYb1Gsu",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Lb8FIjKS5nYb1Gsu",
+          "cachedResultName": "02 - Stock Update"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        816,
+        -304
+      ],
+      "id": "d3ca5d40-1774-4d84-9d66-2bfe0772fa9e",
+      "name": "Call '02 - Stock Update'",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Callback Data').item.json.chat_id }}",
+        "text": "=✅ Thank you for confirming!  \nOrder: {{ $('Extract Callback Data').item.json.order_code }}  \nYour order has been confirmed and  will be shipped soon! \nWe will notify you when your package  is on its way. \n\nAutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        528,
+        -544
+      ],
+      "id": "114fd47d-a84f-4cf8-afdb-e89bb3532f55",
+      "name": "Send Confirmation Telegram",
+      "webhookId": "720020e0-00d9-40e9-b4dd-f714c8b2bd29",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Extract Callback Data').item.json.chat_id }}",
+        "text": "=❌ Order Cancelled  \nOrder: {{ $('Extract Callback Data').item.json.order_code }} \nYour order has been cancelled.\nNo charges will be made.  \nIf you change your mind, feel free to order again! \n\nAutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        64,
+        -208
+      ],
+      "id": "d08ca59d-52ea-4ba1-a927-c59ff004d577",
+      "name": "Send Cancellation Telegram",
+      "webhookId": "a53da582-a83c-46b6-a69d-712271d68699",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": true}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        800,
+        -512
+      ],
+      "id": "82286461-6501-450c-9a3f-d13c031abfd1",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"ok\": true}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        432,
+        -128
+      ],
+      "id": "72dba8c6-a57d-4999-8d25-9fb7a9f77390",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  order_items.quantity,\n  products.product_code,\n  products.product_name,\n  products.stock_quantity,\n  products.minimum_stock,\n  products.id as product_id\nFROM order_items\nJOIN products ON products.id = order_items.product_id\nWHERE order_items.order_id = {{ $json.id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        192,
+        -496
+      ],
+      "id": "cd470959-a87e-4e17-8729-91bb8fb9a581",
+      "name": "Get Order Items",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d9b90184-e35c-4a3c-b41c-a70952a2a0f5",
+              "leftValue": "={{ $json.confirmed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -208,
+        -224
+      ],
+      "id": "a975633c-7dc0-4af5-a2bf-83550d1946c1",
+      "name": "Is Really Confirmed"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Callback Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Callback Data": {
+      "main": [
+        [
+          {
+            "node": "Is Confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Confirmed": {
+      "main": [
+        [
+          {
+            "node": "Is Really Confirmed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Confirm Order": {
+      "main": [
+        [
+          {
+            "node": "Get Order Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call '02 - Stock Update'": {
+      "main": [
+        []
+      ]
+    },
+    "Send Confirmation Telegram": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Cancellation Telegram": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Order Items": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation Telegram",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Call '02 - Stock Update'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Really Confirmed": {
+      "main": [
+        [
+          {
+            "node": "Confirm Order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Cancellation Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "137f5cf1-4d5c-49e9-8b53-c18e975c4a90",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "FYnyYWDbAaVutIPr",
+  "tags": []
+}

@@ -1,0 +1,236 @@
+{
+  "name": "02 - Stock Update",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -608,
+        -80
+      ],
+      "id": "73d7bc09-d1b4-4e25-bb7d-4b3c97219910",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, product_code, product_name, stock_quantity, minimum_stock\nFROM products\nWHERE product_code = '{{ $json.product_code }}';",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -448,
+        -80
+      ],
+      "id": "e81a8bbc-f39e-44c2-8b39-be2a81431397",
+      "name": "Read Product Stock",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const product = $json;\nconst triggerData = $('When Executed by Another Workflow').item.json;\n\nconst orderedQuantity = Number(triggerData.ordered_quantity || triggerData.quantity || 1);\nconst oldStock = Number(product.stock_quantity);\nconst newStock = oldStock - orderedQuantity;\nconst minimumStock = Number(product.minimum_stock);\n\nreturn [\n  {\n    json: {\n      product_id: product.id,\n      product_code: product.product_code,\n      product_name: product.product_name,\n      old_stock: oldStock,\n      ordered_quantity: orderedQuantity,\n      new_stock: newStock,\n      minimum_stock: minimumStock,\n      low_stock: newStock <= minimumStock\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        -80
+      ],
+      "id": "044d09ee-77ad-4b22-9431-298317a768b3",
+      "name": "Calculate New Stock"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE products\nSET stock_quantity = {{$json.new_stock}}\nWHERE id = {{$json.product_id}};\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -112,
+        -80
+      ],
+      "id": "110674e0-adbb-4520-a092-a0a6860106ec",
+      "name": "Update Product Stock",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO stock_movements (\n  product_id,\n  movement_type,\n  quantity,\n  old_stock,\n  new_stock,\n  reason\n)\nVALUES (\n  {{ $('Calculate New Stock').item.json.product_id }},\n  'sale',\n  {{ $('Calculate New Stock').item.json.ordered_quantity }},\n  {{ $('Calculate New Stock').item.json.old_stock }},\n  {{ $('Calculate New Stock').item.json.new_stock }},\n  'Stock updated after customer order'\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        96,
+        -80
+      ],
+      "id": "142b0615-e7da-4e13-bdc6-fde3569d40c9",
+      "name": "Save Stock Movement",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3f282e6c-866b-4aeb-aaf3-e4658776d056",
+              "leftValue": "={{ $('Calculate New Stock').item.json.low_stock }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        304,
+        -80
+      ],
+      "id": "3dfd34a0-e360-4e83-a36c-15446dc6cc36",
+      "name": "Check Low Stock"
+    },
+    {
+      "parameters": {
+        "fromEmail": "autoshop@test.com",
+        "toEmail": "manager@test.com",
+        "subject": "=Low Stock Alert - {{ $('Calculate New Stock').item.json.product_name }}",
+        "html": "=Hello,\n\nThe product {{ $('Calculate New Stock').item.json.product_name }} is now low in stock.\n\nOld stock: {{ $('Calculate New Stock').item.json.old_stock }}\nNew stock: {{ $('Calculate New Stock').item.json.new_stock }}\nMinimum stock: {{ $('Calculate New Stock').item.json.minimum_stock }}\n\nPlease prepare a restocking action.\n\nBest regards,\nAutoShop Automation",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        512,
+        -176
+      ],
+      "id": "0646a528-77e8-43f1-bca2-19bbd5fa9b5c",
+      "name": "Send Low Stock Alert",
+      "webhookId": "dfe4a195-c328-4f2f-9b82-4ea0311e7557",
+      "credentials": {
+        "smtp": {
+          "id": "H9lyohsWELTjRmlq",
+          "name": "SMTP account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Read Product Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Product Stock": {
+      "main": [
+        [
+          {
+            "node": "Calculate New Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate New Stock": {
+      "main": [
+        [
+          {
+            "node": "Update Product Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Product Stock": {
+      "main": [
+        [
+          {
+            "node": "Save Stock Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Stock Movement": {
+      "main": [
+        [
+          {
+            "node": "Check Low Stock",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Low Stock": {
+      "main": [
+        [
+          {
+            "node": "Send Low Stock Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9f906026-afc0-4dc5-8006-5bb1650d05c2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "Lb8FIjKS5nYb1Gsu",
+  "tags": []
+}

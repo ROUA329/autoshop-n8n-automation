@@ -1,0 +1,93 @@
+{
+  "name": "04 - Telegram Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -208,
+        -64
+      ],
+      "id": "cfa1fd70-ba37-4bd1-878e-255d82448c00",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "chatId": "8471701647",
+        "text": "=New Order Received!\n\nOrder: {{ $json.order_code }}\nCustomer: {{ $json.customer_name }}\nEmail: {{ $json.customer_email }}\nTotal: {{ $json.total_amount }} TND\nPayment: {{ $json.payment_status }}\n\nDo you confirm this order?\nPlease reply with:\n✅ YES to confirm\n❌ NO to cancel",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "✅ YES",
+                    "additionalFields": {
+                      "callback_data": "=confirm_{{ $json.order_code }}"
+                    }
+                  },
+                  {
+                    "text": "❌ NO",
+                    "additionalFields": {
+                      "callback_data": "=cancel_{{ $json.order_code }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        -64
+      ],
+      "id": "4a529d31-a93f-49d6-b8cc-f9a29729f160",
+      "name": "Send a text message",
+      "webhookId": "0345d9bf-9bb4-4800-abea-652b2f49b8ee",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "dd78d4aa-8ab8-44e9-b6bd-ef7b18268c07",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "E8H3vALst6C5Ay7y",
+  "tags": []
+}

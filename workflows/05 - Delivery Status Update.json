@@ -1,0 +1,378 @@
+{
+  "name": "05 - Delivery Status Update",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "delivery-update",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -576,
+        -144
+      ],
+      "id": "1497973f-23a8-491c-8547-ef77319aaa61",
+      "name": "Webhook",
+      "webhookId": "e7277bb3-a99b-4a14-aabd-f8404875d1a5"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  orders.id,\n  orders.order_code,\n  orders.delivery_status,\n  customers.full_name,\n  customers.email\nFROM orders\nJOIN customers ON customers.id = orders.customer_id\nWHERE orders.order_code = '{{ $json.body.order_code }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -400,
+        -144
+      ],
+      "id": "995b4190-6d84-484c-a225-9457f31f9783",
+      "name": "Find Order",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders\nSET \n  delivery_status = '{{ $('Webhook').item.json.body.delivery_status }}',\n  updated_at = CURRENT_TIMESTAMP\nWHERE order_code = '{{ $('Webhook').item.json.body.order_code }}'\nRETURNING id, order_code, delivery_status",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -256,
+        -144
+      ],
+      "id": "cf5faa1d-4ee8-44b7-9cb1-05e959a974a8",
+      "name": "Update Delivery Status",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO email_logs (\n  recipient_email,\n  subject,\n  email_type,\n  status\n)\nVALUES (\n  '{{ $json.customer_email }}',\n  'Delivery update for order {{ $json.order_code }}',\n  'delivery_notification',\n  'sent'\n)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        416,
+        -208
+      ],
+      "id": "6ec32cd2-1ff3-498a-aea9-57d8a1272b9c",
+      "name": "Save Log",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"success\",\n  \"message\": \"Delivery status updated and customer notified via Telegram\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        544,
+        -208
+      ],
+      "id": "29bae889-1596-4725-a5a4-90a95d663352",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.delivery_status }}",
+                    "rightValue": "=processing",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "eed896c5-241f-41ae-abd4-be31fa993bbc"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "processing"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "83039be8-e5c5-441e-ba17-d085575c229c",
+                    "leftValue": "{{ $json.delivery_status }}",
+                    "rightValue": "=shipped",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "shipped"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "227de934-a8ac-4b4a-9299-f6e85ab4831e",
+                    "leftValue": "={{ $json.delivery_status }}",
+                    "rightValue": "delivered",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "delivered"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -48,
+        -144
+      ],
+      "id": "cdbb67d4-538d-4894-bd60-eabf12154200",
+      "name": "Check Delivery Status",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "chatId": "8471701647",
+        "text": "=📦 Your order is being prepared!  📦 Order: {{ $('Webhook').item.json.body.order_code }} \nCustomer: {{ $('Find Order').item.json.full_name }}  \nOur team is preparing your package.\nYou will be notified when it ships.  \nAutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        128,
+        -416
+      ],
+      "id": "3beb2d90-089a-4d5a-84cd-745969519871",
+      "name": "Send Processing Telegram",
+      "webhookId": "6fd1ade1-3299-41fd-8d91-c0ba6134a302",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8471701647",
+        "text": "=Your order has been shipped!\n\nOrder: {{ $('Webhook').item.json.body.order_code }}\nCustomer: {{ $('Find Order').item.json.full_name }}\nCarrier: {{ $('Webhook').item.json.body.carrier }}\nTracking number: {{ $('Webhook').item.json.body.tracking_code }}\nStatus: {{ $('Webhook').item.json.body.delivery_status }}\n\nUse this tracking number to follow your package.\n\nAutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        192,
+        -128
+      ],
+      "id": "cc17c1a8-0131-45f0-9f84-38299f83934f",
+      "name": "Send Shipped Telegram",
+      "webhookId": "993fca2a-ece2-4107-8e8a-0c993237b0bf",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "8471701647",
+        "text": "=Your order has been delivered!  \nOrder: {{ $('Webhook').item.json.body.order_code }}\nCustomer: {{ $('Find Order').item.json.full_name }}  \nThank you for shopping with us! We hope to see you again soon \nAutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        208,
+        80
+      ],
+      "id": "a55ee950-ad92-4a8c-b5ca-8d89f14a76fc",
+      "name": "Send Delivered Telegram",
+      "webhookId": "6627b0dd-f232-4166-a477-5e081e7056e0",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Find Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Order": {
+      "main": [
+        [
+          {
+            "node": "Update Delivery Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Delivery Status": {
+      "main": [
+        [
+          {
+            "node": "Check Delivery Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Delivery Status": {
+      "main": [
+        [
+          {
+            "node": "Send Processing Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Shipped Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Delivered Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Shipped Telegram": {
+      "main": [
+        [
+          {
+            "node": "Save Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Processing Telegram": {
+      "main": [
+        [
+          {
+            "node": "Save Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Delivered Telegram": {
+      "main": [
+        [
+          {
+            "node": "Save Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "893d1b8c-60d0-45bc-a4aa-142157be5c89",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "Lo9urDGpIz50QXse",
+  "tags": []
+}
