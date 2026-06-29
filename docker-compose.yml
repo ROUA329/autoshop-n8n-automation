@@ -11,7 +11,7 @@ services:
       - N8N_PORT=5678
       - N8N_PROTOCOL=http
       - NODE_ENV=development
-      - WEBHOOK_URL=http://localhost:5678/
+      - WEBHOOK_URL=https://jarred-epiphysial-psychically.ngrok-free.dev/
       - GENERIC_TIMEZONE=Africa/Tunis
     volumes:
       - n8n_data:/home/node/.n8n
@@ -45,6 +45,16 @@ services:
       - "3000:3000"
     depends_on:
       - postgres
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: autoshop_ngrok
+    ports:
+      - "4040:4040"
+    environment:
+      - NGROK_AUTHTOKEN=3C1XQGe3Axor9IUp0vexRCZl3x8_83qX7J2amEM3mYjQ9UEmo
+    command: http n8n:5678
+    depends_on:
+      - n8n
 
 volumes:
   n8n_data:
