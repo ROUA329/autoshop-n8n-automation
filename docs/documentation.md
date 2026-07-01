@@ -1,8 +1,6 @@
 # AutoShop n8n Automation — Documentation Technique Complète
 
 **Projet :** AutoShop Automation System  
-**Stagiaire :** ROUA Hamrouni  
-**Période :** Juin – Juillet 2026  
 **Outils :** n8n · Docker · PostgreSQL · Mailpit · Metabase · Telegram Bot · Gmail IMAP
 
 ---
