@@ -76,3 +76,29 @@ CREATE TABLE automation_logs (
    details TEXT,
    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE security_logs (
+   id SERIAL PRIMARY KEY,
+   order_code VARCHAR(50),
+   matched_field VARCHAR(100) NOT NULL,
+   matched_value TEXT NOT NULL,
+   detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+   action_taken VARCHAR(50) DEFAULT 'blocked',
+   source_ip VARCHAR(50)
+);
+CREATE TABLE delivery_agents (
+   id SERIAL PRIMARY KEY,
+   full_name VARCHAR(150) NOT NULL,
+   email VARCHAR(150) UNIQUE NOT NULL,
+   phone VARCHAR(50),
+   telegram_chat_id VARCHAR(50),
+   zone VARCHAR(100) NOT NULL,
+   is_active BOOLEAN DEFAULT true,
+   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+ALTER TABLE customers ADD COLUMN zone VARCHAR(100);
+
+ALTER TABLE orders ADD COLUMN delivery_agent_id INTEGER REFERENCES delivery_agents(id);
+ALTER TABLE orders ADD COLUMN assigned_at TIMESTAMP;
+ALTER TABLE orders ADD COLUMN delivered_at TIMESTAMP;
+ALTER TABLE orders ADD COLUMN delivery_photo_url TEXT;
+ALTER TABLE orders ADD COLUMN delivery_rating INTEGER CHECK (delivery_rating BETWEEN 1 AND 5);

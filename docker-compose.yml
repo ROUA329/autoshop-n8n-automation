@@ -12,6 +12,7 @@ services:
       - N8N_PROTOCOL=http
       - NODE_ENV=development
       - WEBHOOK_URL=https://jarred-epiphysial-psychically.ngrok-free.dev/
+      - WEBHOOK_SECRET=n9LIiTvS5Xz2NWaU6FHl7dRxJhotbrAKys8wB14cDG3jMekV
       - GENERIC_TIMEZONE=Africa/Tunis
     volumes:
       - n8n_data:/home/node/.n8n

@@ -20,13 +20,13 @@
     },
     {
       "parameters": {
-        "jsCode": "const order = $json.body || $json;\n\nconst errors = [];\n\nif (!order.order_code) {\n  errors.push(\"Order code is required\");\n}\n\nif (!order.customer || !order.customer.full_name) {\n  errors.push(\"Customer full name is required\");\n}\n\nif (!order.customer || !order.customer.email) {\n  errors.push(\"Customer email is required\");\n}\n\nif (!order.items || order.items.length === 0) {\n  errors.push(\"Order must contain at least one item\");\n}\n\nif (!order.total_amount || order.total_amount <= 0) {\n  errors.push(\"Total amount must be greater than 0\");\n}\n\nif (errors.length > 0) {\n  return [\n    {\n      json: {\n        valid: false,\n        errors: errors\n      }\n    }\n  ];\n}\n\nreturn [\n  {\n    json: {\n      valid: true,\n      order: order\n    }\n  }\n];"
+        "jsCode": "const order = $json.body || $json;\n\nconst errors = [];\n\nif (!order.order_code) {\n  errors.push(\"Order code is required\");\n}\n\nif (!order.customer || !order.customer.full_name) {\n  errors.push(\"Customer full name is required\");\n}\n\nif (!order.customer || !order.customer.email) {\n  errors.push(\"Customer email is required\");\n}\nif (!order.customer || !order.customer.zone) {\n  errors.push(\"Customer zone is required\");\n}\n\nif (!order.items || order.items.length === 0) {\n  errors.push(\"Order must contain at least one item\");\n}\n\nif (!order.total_amount || order.total_amount <= 0) {\n  errors.push(\"Total amount must be greater than 0\");\n}\n\nif (errors.length > 0) {\n  return [\n    {\n      json: {\n        valid: false,\n        errors: errors\n      }\n    }\n  ];\n}\n\nreturn [\n  {\n    json: {\n      valid: true,\n      order: order\n    }\n  }\n];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        160,
-        0
+        1024,
+        -160
       ],
       "id": "a86b2a53-523a-4cff-b200-2afde055f97a",
       "name": "Validate Data"
@@ -40,8 +40,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        1504,
-        368
+        3088,
+        304
       ],
       "id": "587be219-cb5b-4c09-91fb-169970b0e6e0",
       "name": "Respond to Webhook"
@@ -49,14 +49,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO customers (full_name, email, phone)\nVALUES (\n  '{{ $json.order.customer.full_name }}',\n  '{{ $json.order.customer.email }}',\n  '{{ $json.order.customer.phone }}'\n)\nRETURNING id;",
+        "query": "INSERT INTO customers (full_name, email, phone, zone)\nVALUES (\n  '{{ $json.order.customer.full_name }}',\n  '{{ $json.order.customer.email }}',\n  '{{ $json.order.customer.phone }}',\n  '{{ $json.order.customer.zone }}'\n)\nRETURNING id;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        480,
-        -112
+        1952,
+        160
       ],
       "id": "351aab90-bc13-4e0d-b97f-a5d94acc1826",
       "name": "Insert Customer",
@@ -70,14 +70,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO orders (\n  order_code,\n  customer_id,\n  total_amount,\n  status,\n  payment_status,\n  delivery_status\n)\nVALUES (\n  '{{ $('Validate Data').item.json.order.order_code }}',\n  {{ $json.id }},\n  {{ $('Validate Data').item.json.order.total_amount }},\n  'confirmed',\n  '{{ $('Validate Data').item.json.order.payment_status }}',\n  'not_shipped'\n)\nRETURNING id;",
+        "query": "INSERT INTO orders (\n  order_code, customer_id, total_amount,\n  status, payment_status, delivery_status\n)\nVALUES (\n  '{{ $('Validate Data').item.json.order.order_code }}',\n  {{ $json.id }},\n  {{ $('Validate Data').item.json.order.total_amount }},\n  'pending_confirmation',\n  '{{ $('Validate Data').item.json.order.payment_status }}',\n  'not_shipped'\n)\nRETURNING id;",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        640,
-        -112
+        2208,
+        96
       ],
       "id": "6c5e788f-8aa9-480d-94a7-74fbef01992c",
       "name": "Insert Order",
@@ -95,8 +95,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        784,
-        -112
+        2416,
+        128
       ],
       "id": "bfcf6150-541d-44a5-b875-84ceddcc8894",
       "name": "Insert Order Items"
@@ -110,8 +110,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        976,
-        -112
+        2608,
+        64
       ],
       "id": "e6c3e8f1-677e-46e2-ab1c-63954b3336fd",
       "name": "Save Order Items",
@@ -151,7 +151,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        320,
+        1152,
         0
       ],
       "id": "a5a6b116-2a05-4248-8e2f-ed628cbff20a",
@@ -166,7 +166,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        624,
+        1456,
         368
       ],
       "id": "81a16718-d002-4d69-ad68-a01699b73274",
@@ -195,8 +195,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1296,
-        368
+        3040,
+        -48
       ],
       "id": "74e9e9fa-d50f-40d6-9fae-8d06c1ea5a53",
       "name": "Call Email Confirmation"
@@ -236,86 +236,179 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1088,
-        352
+        2800,
+        64
       ],
       "id": "4e478ec1-c4be-4a8c-815e-cab46a3cac76",
       "name": "Prepare Email Data"
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            {
-              "id": "687753f1-35d8-4ac9-98a3-6d7370249068",
-              "name": "order_code",
-              "value": "={{ $('Validate Data').item.json.order.order_code }}",
-              "type": "string"
-            },
-            {
-              "id": "8fde3a0c-b39d-4af9-ae26-1f50af78bb7d",
-              "name": "customer_name",
-              "value": "={{ $('Validate Data').item.json.order.customer.full_name }}",
-              "type": "string"
-            },
-            {
-              "id": "9919bfa0-7db4-4f7c-8fb9-e0d04c2d6ec8",
-              "name": "customer_email",
-              "value": "={{ $('Validate Data').item.json.order.customer.email }}",
-              "type": "string"
-            },
-            {
-              "id": "bf9e3c85-9dcd-4512-aa89-cc6fd817625c",
-              "name": "total_amount",
-              "value": "={{ $('Validate Data').item.json.order.total_amount }}",
-              "type": "string"
-            },
-            {
-              "id": "c30e7d4a-6004-43ab-95b9-001470191d56",
-              "name": "payment_status",
-              "value": "={{ $('Validate Data').item.json.order.payment_status }}",
-              "type": "string"
-            }
-          ]
-        },
-        "options": {}
+        "jsCode": "const order = $('Validate Data').item.json.order;\n\n// Regex : détecte les motifs classiques d'injection SQL\nconst sqlPattern = /(\\bOR\\b|\\bAND\\b)\\s+['\"]?\\d+['\"]?\\s*=\\s*['\"]?\\d+|;\\s*(DROP|DELETE|UPDATE|INSERT|ALTER|TRUNCATE)|--|\\/\\*|\\bUNION\\b\\s+\\bSELECT\\b/i;\n\n// Liste des champs texte à vérifier\nconst fieldsToCheck = [\n  { name: 'customer.full_name', value: order.customer?.full_name },\n  { name: 'customer.email', value: order.customer?.email },\n  { name: 'customer.phone', value: order.customer?.phone },\n  { name: 'order_code', value: order.order_code }\n];\n\n// On ajoute aussi les product_code de chaque item\nif (order.items && Array.isArray(order.items)) {\n  order.items.forEach((item, index) => {\n    fieldsToCheck.push({\n      name: `items[${index}].product_code`,\n      value: item.product_code\n    });\n  });\n}\n\n// Scan de chaque champ\nfor (const field of fieldsToCheck) {\n  if (field.value && sqlPattern.test(field.value)) {\n    return [{\n      json: {\n        threat_detected: true,\n        matched_field: field.name,\n        matched_value: field.value,\n        order_code: order.order_code || null\n      }\n    }];\n  }\n}\n\n// Aucune menace trouvée\nreturn [{\n  json: {\n    threat_detected: false,\n    order: order\n  }\n}];"
       },
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        1200,
-        -112
+        1360,
+        0
       ],
-      "id": "7fb2576c-8ce4-40d0-9de5-57f6c1003461",
-      "name": "Prepare Telegram Data"
+      "id": "a8b4ee60-1c48-4492-beaf-eac6169c5aa8",
+      "name": "Detect SQL Injection"
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "E8H3vALst6C5Ay7y",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/E8H3vALst6C5Ay7y",
-          "cachedResultName": "04 - Telegram Notification"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {},
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d891e16d-2276-4264-a1ca-8124d087808d",
+              "leftValue": "={{ $json.threat_detected }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
         },
         "options": {}
       },
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
       "position": [
-        1376,
-        -112
+        1568,
+        0
       ],
-      "id": "814dc4df-dfbb-4ffe-80de-ed85786c9875",
-      "name": "Call '04 - Telegram Notification'"
+      "id": "255ec202-1fdd-4e12-824d-5b31f899657d",
+      "name": "If — Threat Detected?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO security_logs (order_code, matched_field, matched_value, action_taken)\nVALUES (\n  '{{ $json.order_code }}',\n  '{{ $json.matched_field }}',\n  '{{ $json.matched_value.replace(/'/g, \"''\") }}',\n  'blocked'\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1776,
+        -96
+      ],
+      "id": "fcde61c5-5e12-4e0c-b147-7fb10c8c357b",
+      "name": "Save Security Log",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"blocked\",\n  \"message\": \"Suspicious input detected. This attempt has been logged.\"\n}",
+        "options": {
+          "responseCode": 403
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2048,
+        -160
+      ],
+      "id": "8b10f971-c146-49f0-8d3f-2b94300f6249",
+      "name": "Respond to Webhook — Blocked"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c5f60ec7-2fbc-4c3c-ad30-4db484a62010",
+              "leftValue": "={{ $json.are_equal }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        832,
+        0
+      ],
+      "id": "19a86c4a-aaa3-4131-9d41-c714b47de5ac",
+      "name": "If — Signature Valid?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": \"unauthorized\",\n  \"message\": \"Invalid or missing signature\"\n}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1008,
+        144
+      ],
+      "id": "3d52ebd7-f8f7-4816-bac6-412d29f0f73a",
+      "name": "Respond to Webhook — Unauthorized"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "value": "={{ JSON.stringify($json.body) }}",
+        "dataPropertyName": "computed_signature"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "754217e8-9832-4396-a652-3ce4453c07d6",
+      "name": "Crypto",
+      "credentials": {
+        "crypto": {
+          "id": "aygPlCVdYr92EJ09",
+          "name": "Crypto account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const computed = $json.computed_signature;\nconst received = $('Webhook').item.json.headers['x-signature'];\n\nreturn [{\n  json: {\n    ...$('Webhook').item.json.body,\n    are_equal: computed === received\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "ec49c732-348a-4fb9-aeff-7cd20be39ab0",
+      "name": "Compare Signatures"
     }
   ],
   "pinData": {},
@@ -324,7 +417,7 @@
       "main": [
         [
           {
-            "node": "Validate Data",
+            "node": "Crypto",
             "type": "main",
             "index": 0
           }
@@ -379,7 +472,7 @@
       "main": [
         [
           {
-            "node": "Prepare Telegram Data",
+            "node": "Prepare Email Data",
             "type": "main",
             "index": 0
           }
@@ -390,7 +483,7 @@
       "main": [
         [
           {
-            "node": "Insert Customer",
+            "node": "Detect SQL Injection",
             "type": "main",
             "index": 0
           }
@@ -426,11 +519,80 @@
         ]
       ]
     },
-    "Prepare Telegram Data": {
+    "Detect SQL Injection": {
       "main": [
         [
           {
-            "node": "Call '04 - Telegram Notification'",
+            "node": "If — Threat Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If — Threat Detected?": {
+      "main": [
+        [
+          {
+            "node": "Save Security Log",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Insert Customer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Security Log": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook — Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If — Signature Valid?": {
+      "main": [
+        [
+          {
+            "node": "Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook — Unauthorized",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Crypto": {
+      "main": [
+        [
+          {
+            "node": "Compare Signatures",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compare Signatures": {
+      "main": [
+        [
+          {
+            "node": "If — Signature Valid?",
             "type": "main",
             "index": 0
           }
@@ -444,7 +606,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "514c4efb-2b09-446a-aa01-36b1987ae201",
+  "versionId": "b70fff97-988b-4890-a7eb-bffb01358e08",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"

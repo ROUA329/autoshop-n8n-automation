@@ -16,7 +16,7 @@
     },
     {
       "parameters": {
-        "chatId": "8471701647",
+        "chatId": "={{ $json.chat_id }}",
         "text": "=New Order Received!\n\nOrder: {{ $json.order_code }}\nCustomer: {{ $json.customer_name }}\nEmail: {{ $json.customer_email }}\nTotal: {{ $json.total_amount }} TND\nPayment: {{ $json.payment_status }}\n\nDo you confirm this order?\nPlease reply with:\n✅ YES to confirm\n❌ NO to cancel",
         "replyMarkup": "inlineKeyboard",
         "inlineKeyboard": {
@@ -82,7 +82,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "dd78d4aa-8ab8-44e9-b6bd-ef7b18268c07",
+  "versionId": "0188a78a-eab3-4813-a645-3383880b9885",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"

@@ -19,7 +19,7 @@
         "fromEmail": "autoshop@test.com",
         "toEmail": "={{ $json.customer_email }}",
         "subject": "=Your order {{ $json.order_code }} is confirmed",
-        "html": "=Hello {{ $json.customer_name }},\n\nThank you for your order.\n\nYour order number is: {{ $json.order_code }}\n\nTotal amount: {{ $json.total_amount }} TND\n\nWe will notify you when your order is shipped.\n\nBest regards,\nAutoShop Team",
+        "html": "=Hello {{ $json.customer_name }},\n\nThank you for your order.\nYour order number is: {{ $json.order_code }}\nTotal amount: {{ $json.total_amount }} TND\n\n📲 Get real-time updates on your order via Telegram!\nClick here to receive instant notifications: https://t.me/autoshop_notif_bot?start={{ $json.order_code }}\n\nWe will notify you when your order is shipped.\nBest regards, AutoShop Team",
         "options": {}
       },
       "type": "n8n-nodes-base.emailSend",
@@ -115,7 +115,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "cbba129e-4f7c-4e95-897b-9809253c0947",
+  "versionId": "6d55154f-9cd1-42ee-a401-0595f5fd955f",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"

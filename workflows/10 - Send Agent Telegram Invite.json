@@ -1,0 +1,133 @@
+{
+  "name": "10 - Send Agent Telegram Invite",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "invite-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -448,
+        -32
+      ],
+      "id": "7caf84d1-5f82-4056-b65c-6ec2dd3a6233",
+      "name": "Webhook",
+      "webhookId": "f9e40a39-406f-4eda-a811-7f49a0f48a7a"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, full_name, email, zone\nFROM delivery_agents\nWHERE id = {{ $json.body.agent_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -192,
+        -32
+      ],
+      "id": "54a35d0f-e5fc-4a52-b9d0-8e3d70bcb28d",
+      "name": "Get Agent Info",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "autoshop@test.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Bienvenue chez AutoShop - Configurez votre Telegram",
+        "emailFormat": "text",
+        "text": "=Bonjour {{ $json.full_name }},\n\nVous êtes enregistré comme livreur AutoShop pour la zone : {{ $json.zone }}\n\nPour recevoir vos livraisons directement sur Telegram, cliquez sur ce lien :\nhttps://t.me/autoshop_notif_bot?start=AGENT-{{ $json.id }}\n\nAutoShop Team",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [
+        16,
+        -32
+      ],
+      "id": "8d4161d7-ffc1-4e5e-9c64-26b739c85350",
+      "name": "Send an Email",
+      "webhookId": "b98ddc9a-b4f8-4887-bf8c-31b90e138995",
+      "credentials": {
+        "smtp": {
+          "id": "lMnhHudFf1D3124q",
+          "name": "Mailpit Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"status\": \"success\", \"message\": \"Invitation sent\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        224,
+        -32
+      ],
+      "id": "ce245950-acb0-43bf-96c0-06899bd7948b",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Agent Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Agent Info": {
+      "main": [
+        [
+          {
+            "node": "Send an Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an Email": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "20b17801-6c58-4f2f-9a52-01cccff8616a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
+  },
+  "nodeGroups": [],
+  "id": "punrpzkOCxK4f250",
+  "tags": []
+}

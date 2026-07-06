@@ -11,8 +11,8 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -768,
-        -176
+        -976,
+        -416
       ],
       "id": "485947dc-fae5-4430-815c-240857344e7b",
       "name": "Webhook",
@@ -20,13 +20,13 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json.body;\n\n\nif (body.callback_query) {\n  const callbackQuery = body.callback_query;\n  const callbackData = callbackQuery.data;\n  const chatId = callbackQuery.message.chat.id;\n  const messageId = callbackQuery.message.message_id;\n  const isConfirmed = callbackData.startsWith('confirm_');\n  const orderCode = callbackData.replace('confirm_', '').replace('cancel_', '');\n\n  return [{\n    json: {\n      type: 'client_confirmation',\n      order_code: orderCode,\n      chat_id: chatId,\n      message_id: messageId,\n      confirmed: isConfirmed,\n      callback_data: callbackData\n    }\n  }];\n}\n\n\n\nif (body.message) {\n  const message = body.message;\n  const text = message.text;\n  const chatId = message.chat.id;\n  const parts = text.trim().split(' ');\n  const status = parts[0].toLowerCase();\n  const orderCode = parts[1];\n\n  return [{\n    json: {\n      type: 'delivery_update',\n      delivery_status: status,\n      order_code: orderCode,\n      chat_id: chatId\n    }\n  }];\n}\n\n// Aucun cas reconnu — sécurité\nreturn [{\n  json: {\n    type: 'unknown',\n    raw: body\n  }\n}];"
+        "jsCode": "const body = $json.body;\n\nif (body.callback_query) {\n  const callbackQuery = body.callback_query;\n  const callbackData = callbackQuery.data;\n  const chatId = callbackQuery.message.chat.id;\n  const messageId = callbackQuery.message.message_id;\n\n  // Livreur clique Shipped ou Delivered\n  if (callbackData.startsWith('ship_') || callbackData.startsWith('deliver_')) {\n    const orderCode = callbackData.replace('ship_', '').replace('deliver_', '');\n    const newStatus = callbackData.startsWith('ship_') ? 'shipped' : 'delivered';\n    return [{\n      json: {\n        type: 'agent_delivery_update',\n        order_code: orderCode,\n        delivery_status: newStatus,\n        chat_id: chatId\n      }\n    }];\n  }\n\n  // Client clique YES ou NO\n  const isConfirmed = callbackData.startsWith('confirm_');\n  const orderCode = callbackData.replace('confirm_', '').replace('cancel_', '');\n  return [{\n    json: {\n      type: 'client_confirmation',\n      order_code: orderCode,\n      chat_id: chatId,\n      message_id: messageId,\n      confirmed: isConfirmed,\n      callback_data: callbackData\n    }\n  }];\n}\n\nif (body.message) {\n  const message = body.message;\n  const text = message.text;\n  const chatId = message.chat.id;\n\n  if (text && text.startsWith('/start ')) {\n    const payload = text.replace('/start ', '').trim();\n    if (payload.startsWith('AGENT-')) {\n      const agentId = payload.replace('AGENT-', '').trim();\n      return [{\n        json: {\n          type: 'agent_link',\n          agent_id: agentId,\n          chat_id: chatId\n        }\n      }];\n    }\n    return [{\n      json: {\n        type: 'telegram_link',\n        order_code: payload,\n        chat_id: chatId\n      }\n    }];\n  }\n  return [{ json: { type: 'unknown', raw: body } }];\n}\n\nreturn [{ json: { type: 'unknown', raw: body } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -608,
-        -176
+        -736,
+        -416
       ],
       "id": "0e49ef1e-1714-4e23-9a4b-581df839bf9b",
       "name": "Extract Callback Data"
@@ -59,8 +59,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -448,
-        -176
+        -48,
+        -160
       ],
       "id": "246fd9f8-ac0a-4444-84d2-8aed3762fbde",
       "name": "Is Confirmed"
@@ -74,8 +74,8 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        0,
-        -432
+        608,
+        -192
       ],
       "id": "594e69a6-2324-4051-b3c6-aa1ac33f0f39",
       "name": "Confirm Order",
@@ -108,8 +108,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        816,
-        -304
+        2224,
+        80
       ],
       "id": "d3ca5d40-1774-4d84-9d66-2bfe0772fa9e",
       "name": "Call '02 - Stock Update'",
@@ -124,8 +124,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        528,
-        -544
+        2048,
+        -304
       ],
       "id": "114fd47d-a84f-4cf8-afdb-e89bb3532f55",
       "name": "Send Confirmation Telegram",
@@ -146,8 +146,8 @@
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        64,
-        -208
+        816,
+        192
       ],
       "id": "d08ca59d-52ea-4ba1-a927-c59ff004d577",
       "name": "Send Cancellation Telegram",
@@ -168,8 +168,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        800,
-        -512
+        2496,
+        -48
       ],
       "id": "82286461-6501-450c-9a3f-d13c031abfd1",
       "name": "Respond to Webhook"
@@ -183,8 +183,8 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [
-        432,
-        -128
+        1024,
+        192
       ],
       "id": "72dba8c6-a57d-4999-8d25-9fb7a9f77390",
       "name": "Respond to Webhook1"
@@ -192,14 +192,14 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT \n  order_items.quantity,\n  products.product_code,\n  products.product_name,\n  products.stock_quantity,\n  products.minimum_stock,\n  products.id as product_id\nFROM order_items\nJOIN products ON products.id = order_items.product_id\nWHERE order_items.order_id = {{ $json.id }}",
+        "query": "SELECT\n  order_items.quantity,\n  products.product_code,\n  products.product_name,\n  products.stock_quantity,\n  products.minimum_stock,\n  products.id as product_id\nFROM order_items\nJOIN products ON products.id = order_items.product_id\nWHERE order_items.order_id = {{ $('Confirm Order').item.json.id }}",
         "options": {}
       },
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        192,
-        -496
+        1856,
+        -96
       ],
       "id": "cd470959-a87e-4e17-8729-91bb8fb9a581",
       "name": "Get Order Items",
@@ -237,11 +237,485 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.3,
       "position": [
-        -208,
-        -224
+        240,
+        -176
       ],
       "id": "a975633c-7dc0-4af5-a2bf-83550d1946c1",
       "name": "Is Really Confirmed"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  customers.id AS customer_id, \n  customers.full_name, \n  customers.email,\n  orders.order_code,\n  orders.total_amount,\n  orders.payment_status\nFROM customers\nJOIN orders ON orders.customer_id = customers.id\nWHERE orders.order_code = '{{ $json.order_code }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        48,
+        -576
+      ],
+      "id": "4eb09577-02bd-4bde-af57-27bafe8f70f1",
+      "name": "Find Customer By Order",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE customers\nSET telegram_chat_id = '{{ $('Is Telegram Link').item.json.chat_id }}'\nWHERE id = {{ $json.customer_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        272,
+        -576
+      ],
+      "id": "4ba68876-9892-4caa-b60c-1f27ebe47292",
+      "name": "Save Chat ID",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f0991c8e-a9b4-420d-9f1a-bb8c3f5f28ca",
+              "name": "order_code",
+              "value": "={{ $('Find Customer By Order').item.json.order_code }}",
+              "type": "string"
+            },
+            {
+              "id": "c4eb5aa8-ea09-4d2d-a4a5-2b3eb6590691",
+              "name": "customer_name",
+              "value": "={{ $('Find Customer By Order').item.json.full_name }}",
+              "type": "string"
+            },
+            {
+              "id": "d7f89c53-3610-40a8-85f5-5c1a67b46d4d",
+              "name": "customer_email",
+              "value": "={{ $('Find Customer By Order').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "dd53de14-9794-4458-aacb-8602cff2db0b",
+              "name": "total_amount",
+              "value": "={{ $('Find Customer By Order').item.json.total_amount }}",
+              "type": "number"
+            },
+            {
+              "id": "3734dc8b-b1eb-4442-bf1d-987de7294994",
+              "name": "payment_status",
+              "value": "={{ $('Find Customer By Order').item.json.payment_status }}",
+              "type": "string"
+            },
+            {
+              "id": "3b4a6518-3960-46cc-ba34-d47cc70e738f",
+              "name": "chat_id",
+              "value": "={{ $('Is Client Link').item.json.chat_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        464,
+        -576
+      ],
+      "id": "6c547a0d-5419-4a61-afe4-cdeb79ff1ee5",
+      "name": "Prepare Telegram Data"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "E8H3vALst6C5Ay7y",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/E8H3vALst6C5Ay7y",
+          "cachedResultName": "04 - Telegram Notification"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        672,
+        -576
+      ],
+      "id": "9a9d6476-92ab-4f91-a86b-fd34f5609e65",
+      "name": "Call '04 - Telegram Notification'"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders\nSET status = 'cancelled', updated_at = CURRENT_TIMESTAMP\nWHERE order_code = '{{ $json.order_code }}'\nRETURNING id, order_code, status;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        608,
+        192
+      ],
+      "id": "4e02fae1-93fd-4ba9-b0bb-3b98e0f36449",
+      "name": "Cancel Order",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "2d3a4a2c-6c17-4018-b5a4-128717e7ceff",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "agent_link",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -448,
+        -304
+      ],
+      "id": "8861a422-c908-470d-b4ac-d86f7f77dd85",
+      "name": "Is Agent Link"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE delivery_agents\nSET telegram_chat_id = '{{ $json.chat_id }}'\nWHERE id = {{ $json.agent_id }}\nRETURNING id, full_name, zone;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -432,
+        -128
+      ],
+      "id": "f8f629e5-1451-4943-a77f-0337492f6daa",
+      "name": "Save Agent Chat ID",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Is Agent Link').item.json.chat_id }}",
+        "text": "=✅ Bienvenue {{ $json.full_name }} !  Votre compte Telegram est maintenant lié à AutoShop. Zone assignée : {{ $json.zone }}  Vous recevrez vos prochaines livraisons directement ici.  AutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -256,
+        -128
+      ],
+      "id": "018ad146-e451-417a-be15-542b95663cba",
+      "name": "Send Confirmation to Agent",
+      "webhookId": "44b0a8ee-4731-4645-8287-eb9a615c2e21",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT delivery_agents.id AS agent_id, delivery_agents.full_name AS agent_name, \n       delivery_agents.telegram_chat_id, delivery_agents.zone\nFROM delivery_agents\nJOIN customers ON customers.zone = delivery_agents.zone\nJOIN orders ON orders.customer_id = customers.id\nWHERE orders.id = {{ $json.id }}\n  AND delivery_agents.is_active = true\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        816,
+        -192
+      ],
+      "id": "0ba18e5d-10be-44ea-a930-cd95dbf4b827",
+      "name": "Find Available Agent",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders\nSET delivery_agent_id = {{ $json.agent_id }},\n    assigned_at = CURRENT_TIMESTAMP\nWHERE id = {{ $('Confirm Order').item.json.id }}\nRETURNING order_code;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        1008,
+        -192
+      ],
+      "id": "186b90b4-e956-4785-a2c3-bbbfd7fba547",
+      "name": "Assign Agent to Order",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "5afbb09c-9024-43d4-89f0-19d0ef2fcaeb",
+              "leftValue": "={{ $('Find Available Agent').item.json.telegram_chat_id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        -192
+      ],
+      "id": "e0bb8fbe-bd09-4467-abea-9b9b7344d557",
+      "name": "If — Agent Has Telegram?"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Find Available Agent').item.json.telegram_chat_id }}",
+        "text": "=🚚 Nouvelle livraison assignée !\n\nCommande : {{ $('Confirm Order').item.json.order_code }}\nZone : {{ $('Find Available Agent').item.json.zone }}\n\nMettez à jour le statut de livraison :",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🚚 Shipped",
+                    "additionalFields": {
+                      "callback_data": "=ship_{{ $('Confirm Order').item.json.order_code }}"
+                    }
+                  },
+                  {
+                    "text": "✅ Delivered",
+                    "additionalFields": {
+                      "callback_data": "=deliver_{{ $('Confirm Order').item.json.order_code }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1552,
+        -320
+      ],
+      "id": "2add6eba-9315-4d55-bddd-02a845a6313b",
+      "name": "Notify Agent New Delivery",
+      "webhookId": "406417f7-2d2f-4cae-8ca5-dd90fade5334",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1f9ec10c-7e70-406f-96bb-772218a23387",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "agent_delivery_update",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -864,
+        208
+      ],
+      "id": "2e18d861-3bc0-4290-8e8f-a84350efc2bb",
+      "name": "If — Is Agent Delivery Update?"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE orders\nSET delivery_status = '{{ $json.delivery_status }}',\n    updated_at = CURRENT_TIMESTAMP\nWHERE order_code = '{{ $json.order_code }}'\nRETURNING id, order_code, delivery_status, customer_id;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -560,
+        192
+      ],
+      "id": "a861d4f0-22a6-41c0-8369-5d71c0521c93",
+      "name": "Update Delivery Status",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.telegram_chat_id }}",
+        "text": "={{ $('Extract Callback Data').item.json.delivery_status === 'shipped' ? '🚚' : '✅' }} Delivery Update!\n\nOrder: {{ $('Extract Callback Data').item.json.order_code }}\nStatus: {{ $('Extract Callback Data').item.json.delivery_status === 'shipped' ? 'Your order is on its way! 🚚' : 'Your order has been delivered! ✅' }}\n\nThank you for shopping with us.\nAutoShop Team",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        192
+      ],
+      "id": "82f06b74-98ab-4d91-be61-6db90fa045b3",
+      "name": "Notify Client Delivery",
+      "webhookId": "d50355bf-094e-449f-bbf5-2711a739ce07",
+      "credentials": {
+        "telegramApi": {
+          "id": "dxWhKsZwUpC6dbuE",
+          "name": "AutoShop Telegram Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT customers.telegram_chat_id\nFROM orders\nJOIN customers ON customers.id = orders.customer_id\nWHERE orders.order_code = '{{ $('Extract Callback Data').item.json.order_code }}'",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -336,
+        192
+      ],
+      "id": "536f769b-c4e3-4fe6-8477-233377c6b24e",
+      "name": "Get Client Chat ID",
+      "credentials": {
+        "postgres": {
+          "id": "N03WY2oeHmlYaQQf",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fad59265-f904-4b94-941b-51a919ae8227",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "telegram_link",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -224,
+        -560
+      ],
+      "id": "b67e6949-c4ad-484e-bdff-1e0b0c150e97",
+      "name": "Is Client Link"
     }
   ],
   "pinData": {},
@@ -261,7 +735,17 @@
       "main": [
         [
           {
-            "node": "Is Confirmed",
+            "node": "Is Agent Link",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Client Link",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If — Is Agent Delivery Update?",
             "type": "main",
             "index": 0
           }
@@ -284,7 +768,7 @@
       "main": [
         [
           {
-            "node": "Get Order Items",
+            "node": "Find Available Agent",
             "type": "main",
             "index": 0
           }
@@ -345,7 +829,175 @@
         ],
         [
           {
+            "node": "Cancel Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Customer By Order": {
+      "main": [
+        [
+          {
+            "node": "Save Chat ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Chat ID": {
+      "main": [
+        [
+          {
+            "node": "Prepare Telegram Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Telegram Data": {
+      "main": [
+        [
+          {
+            "node": "Call '04 - Telegram Notification'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cancel Order": {
+      "main": [
+        [
+          {
             "node": "Send Cancellation Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Agent Link": {
+      "main": [
+        [
+          {
+            "node": "Save Agent Chat ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Agent Chat ID": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmation to Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Available Agent": {
+      "main": [
+        [
+          {
+            "node": "Assign Agent to Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assign Agent to Order": {
+      "main": [
+        [
+          {
+            "node": "If — Agent Has Telegram?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If — Agent Has Telegram?": {
+      "main": [
+        [
+          {
+            "node": "Notify Agent New Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get Order Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Agent New Delivery": {
+      "main": [
+        [
+          {
+            "node": "Get Order Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If — Is Agent Delivery Update?": {
+      "main": [
+        [
+          {
+            "node": "Update Delivery Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Delivery Status": {
+      "main": [
+        [
+          {
+            "node": "Get Client Chat ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Client Chat ID": {
+      "main": [
+        [
+          {
+            "node": "Notify Client Delivery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Client Link": {
+      "main": [
+        [
+          {
+            "node": "Find Customer By Order",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Is Confirmed",
             "type": "main",
             "index": 0
           }
@@ -359,7 +1011,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "137f5cf1-4d5c-49e9-8b53-c18e975c4a90",
+  "versionId": "dbe27647-f9ca-4ed8-8e6e-e8e7838c66b6",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "02365461c6c52b5d348b9d4b6f944532f8607f6493dc94539984dd0a2add56cf"
